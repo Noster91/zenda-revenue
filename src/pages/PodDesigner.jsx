@@ -933,6 +933,9 @@ export default function PodDesigner() {
                             }`} style={totalAlloc < 100 ? { color } : {}}>
                               {member.allocation}%
                             </span>
+                            <span className="text-[10px] text-textSecondary whitespace-nowrap flex-shrink-0 w-16 text-right">
+                              {formatUSD(Math.round((member.costoUSD || 0) * member.allocation / 100))}
+                            </span>
                           </>
                         )}
                         {member._orphaned && (
