@@ -12,6 +12,7 @@ import useDataStore from '../store/useDataStore'
 import usePodDesignStore from '../store/usePodDesignStore'
 import useGlobalPeriod from './useGlobalPeriod'
 import { isSupabaseConfigured } from '../lib/supabase'
+import { listPeriodos, loadClosedPeriod } from '../services/periodCloseService'
 
 export default function useDataOrchestrator() {
   const initialize           = useDataStore(s => s.initialize)
@@ -23,10 +24,13 @@ export default function useDataOrchestrator() {
   const teamSource           = useDataStore(s => s.teamSource)
   const ventasSource         = useDataStore(s => s.ventasSource)
 
-  const syncWithLiveData = usePodDesignStore(s => s.syncWithLiveData)
-  const loadFromSupabase = usePodDesignStore(s => s.loadFromSupabase)
-  const selectedMonth = useGlobalPeriod(s => s.selectedMonth)
+  const syncWithLiveData   = usePodDesignStore(s => s.syncWithLiveData)
+  const loadFromSupabase   = usePodDesignStore(s => s.loadFromSupabase)
+  const restoreConfig      = usePodDesignStore(s => s.restoreConfig)
+  const selectedMonth      = useGlobalPeriod(s => s.selectedMonth)
   const setAvailableMonths = useGlobalPeriod(s => s.setAvailableMonths)
+  const closedPeriods      = useGlobalPeriod(s => s.closedPeriods)
+  const setClosedPeriods   = useGlobalPeriod(s => s.setClosedPeriods)
 
   // 1. Initialize data store on mount
   useEffect(() => {
@@ -46,6 +50,42 @@ export default function useDataOrchestrator() {
       loadFromSupabase()
     }
   }, [loadFromSupabase])
+
+  // 1e. Cargar estado de períodos cerrados desde Supabase
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+    listPeriodos()
+      .then(periodos => setClosedPeriods(periodos))
+      .catch(() => {}) // silencioso si la tabla aún no existe
+  }, [setClosedPeriods])
+
+  // 1f. Cuando se navega a un período cerrado, cargar su snapshot
+  useEffect(() => {
+    if (!selectedMonth || !isSupabaseConfigured) return
+    const closed = closedPeriods[selectedMonth]
+    if (!closed) return
+
+    loadClosedPeriod(closed.id)
+      .then(snap => {
+        if (!snap) return
+        // Restaurar el diseño de PODs del snapshot
+        if (snap.pod_design) {
+          restoreConfig(snap.pod_design)
+        }
+        // Reconstituir teamData desde el snapshot de costos
+        const teamCostsSnap = snap.team_costs || {}
+        const rate = snap.rate || useDataStore.getState().rate
+        const derivedTeam = Object.entries(teamCostsSnap).map(([nombre, costoARS]) => ({
+          nombre,
+          costoMensualARS: costoARS,
+          neto: costoARS,
+        }))
+        if (derivedTeam.length > 0) {
+          useDataStore.setState({ teamData: derivedTeam, teamSource: 'snapshot' })
+        }
+      })
+      .catch(() => {})
+  }, [selectedMonth, closedPeriods, restoreConfig])
 
   // 1b. Feed available months to period store
   useEffect(() => {

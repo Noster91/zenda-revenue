@@ -59,9 +59,34 @@ const useGlobalPeriod = create(
       selectedYear: '26',
       // Meses disponibles del sheet (se actualizan al cargar datos)
       availableMonths: [],
+      // Períodos cerrados: { [codigo]: { id, label, fecha_cierre } }
+      closedPeriods: {},
 
       // ── Actions ────────────────────────────────────────────────────────────
       setMode: (mode) => set({ mode }),
+
+      /** Carga el mapa de períodos cerrados desde Supabase */
+      setClosedPeriods: (periodosArray) => {
+        const map = {}
+        periodosArray
+          .filter(p => p.estado === 'cerrado')
+          .forEach(p => { map[p.codigo] = { id: p.id, label: p.label, fecha_cierre: p.fecha_cierre } })
+        set({ closedPeriods: map })
+      },
+
+      /** Marca un período como cerrado localmente (optimistic update) */
+      markPeriodClosed: (codigo, id, label, fecha_cierre) =>
+        set(s => ({
+          closedPeriods: { ...s.closedPeriods, [codigo]: { id, label, fecha_cierre } }
+        })),
+
+      /** Marca un período como abierto localmente (optimistic update) */
+      markPeriodOpen: (codigo) =>
+        set(s => {
+          const next = { ...s.closedPeriods }
+          delete next[codigo]
+          return { closedPeriods: next }
+        }),
 
       setSelectedMonth: (month) => set(s => ({
         selectedMonth: month,
@@ -155,6 +180,7 @@ export function usePeriodValues() {
   const selectedQuarter = useGlobalPeriod(s => s.selectedQuarter)
   const selectedYear = useGlobalPeriod(s => s.selectedYear)
   const availableMonths = useGlobalPeriod(s => s.availableMonths)
+  const closedPeriods = useGlobalPeriod(s => s.closedPeriods)
 
   const selectedMonths = useMemo(
     () => useGlobalPeriod.getState().getSelectedMonths(),
@@ -176,7 +202,14 @@ export function usePeriodValues() {
     [mode]
   )
 
-  return { mode, selectedMonth, selectedMonths, periodLabel, costMultiplier, modeLabel }
+  // True si el mes seleccionado actualmente está cerrado
+  const isCurrentPeriodClosed = !!(selectedMonth && closedPeriods[selectedMonth])
+  const currentPeriodClose = selectedMonth ? closedPeriods[selectedMonth] : null
+
+  return {
+    mode, selectedMonth, selectedMonths, periodLabel, costMultiplier, modeLabel,
+    closedPeriods, isCurrentPeriodClosed, currentPeriodClose,
+  }
 }
 
 export default useGlobalPeriod

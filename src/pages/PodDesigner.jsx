@@ -13,8 +13,11 @@ import { formatUSD, formatPct } from '../utils/formatters'
 import { POD_COLORS } from '../utils/podColors'
 import useSimulationStore from '../store/useSimulationStore'
 import { usePeriodValues } from '../hooks/useGlobalPeriod'
+import useGlobalPeriod from '../hooks/useGlobalPeriod'
+import useDataStore from '../store/useDataStore'
 import { useAuth } from '../context/AuthContext'
 import { listVersions, saveVersion, loadVersion, deleteVersion } from '../services/podVersionService'
+import { closePeriod, reopenPeriod, listPeriodos } from '../services/periodCloseService'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const EXTRA_COLORS = [
@@ -117,7 +120,11 @@ export default function PodDesigner() {
   }, [teamRaw, rate, newPeople])
 
   // Periodo global
-  const { selectedMonth, periodLabel } = usePeriodValues()
+  const { selectedMonth, periodLabel, isCurrentPeriodClosed, currentPeriodClose } = usePeriodValues()
+  const markPeriodClosed = useGlobalPeriod(s => s.markPeriodClosed)
+  const markPeriodOpen   = useGlobalPeriod(s => s.markPeriodOpen)
+  const teamMensualData  = useDataStore(s => s.teamMensualData)
+  const lookerData       = useDataStore(s => s.lookerData)
 
   const clientPool = useMemo(() => {
     if (!ventasData || !selectedMonth) return []
@@ -136,6 +143,12 @@ export default function PodDesigner() {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [tableSort, setTableSort] = useState({ key: 'revenue', dir: 'desc' })
   const [tableSearch, setTableSearch] = useState('')
+
+  // ── Estado cierre de período ──────────────────────────────────────────────
+  const [closingPeriod, setClosingPeriod] = useState(false)
+  const [reopeningPeriod, setReopeningPeriod] = useState(false)
+  const [confirmClose, setConfirmClose] = useState(false)
+  const [confirmReopen, setConfirmReopen] = useState(false)
 
   // ── Estado versiones ──────────────────────────────────────────────────────
   const [versions, setVersions] = useState([])
@@ -362,6 +375,69 @@ export default function PodDesigner() {
     }))
   }, [])
 
+  // ── Handlers: cierre / apertura de período ────────────────────────────────
+  const handleClosePeriod = useCallback(async () => {
+    if (!selectedMonth || !userId) return
+    setClosingPeriod(true)
+    try {
+      // Buscar el periodo_id desde Supabase
+      const periodos = await listPeriodos()
+      const periodo = periodos.find(p => p.codigo === selectedMonth)
+      if (!periodo) throw new Error('Período no encontrado en Supabase. Corré la migración SQL primero.')
+
+      // Armar snapshot de costos del mes
+      const teamCosts = {}
+      const costsSource = teamMensualData || []
+      costsSource.forEach(p => {
+        const costo = p.costoByMonth?.[selectedMonth] || p.costoMensualARS || 0
+        if (costo > 0) teamCosts[p.nombre] = costo
+      })
+
+      // Snapshot de revenue del mes
+      const revenueSnap = {}
+      Object.values(clientAssignments).flat().forEach(c => {
+        revenueSnap[c.nombre] = c.revenue || 0
+      })
+
+      // Estructura del mes desde lookerData
+      const lookerRow = lookerData?.find(d => d.mes === selectedMonth.replace('-', ' ')) || {}
+      const estructuraUsdSnap = Math.abs(lookerRow.estructura || 0)
+
+      const snapshot = {
+        podDesign: { pods, assignments, clientAssignments, revenueOverrides },
+        teamCosts,
+        revenue:       revenueSnap,
+        overheadUsd:   globalMetrics.overhead || 0,
+        estructuraUsd: estructuraUsdSnap,
+        rate:          useDataStore.getState().rate,
+        metrics:       { podMetrics, globalMetrics },
+      }
+
+      await closePeriod(periodo.id, snapshot, userId)
+      markPeriodClosed(selectedMonth, periodo.id, periodo.label, new Date().toISOString())
+      setConfirmClose(false)
+    } catch (err) {
+      alert(`Error al cerrar período: ${err.message}`)
+    } finally {
+      setClosingPeriod(false)
+    }
+  }, [selectedMonth, userId, teamMensualData, clientAssignments, lookerData,
+      pods, assignments, revenueOverrides, podMetrics, globalMetrics, markPeriodClosed])
+
+  const handleReopenPeriod = useCallback(async () => {
+    if (!currentPeriodClose?.id || !userId) return
+    setReopeningPeriod(true)
+    try {
+      await reopenPeriod(currentPeriodClose.id, userId)
+      markPeriodOpen(selectedMonth)
+      setConfirmReopen(false)
+    } catch (err) {
+      alert(`Error al abrir período: ${err.message}`)
+    } finally {
+      setReopeningPeriod(false)
+    }
+  }, [currentPeriodClose, userId, selectedMonth, markPeriodOpen])
+
   // ── Render ─────────────────────────────────────────────────────────────────
   const isTargeting = selected.length > 0
   const selectedNames = selected.map(s => s.nombre)
@@ -415,6 +491,39 @@ export default function PodDesigner() {
         </div>
       </div>
 
+      {/* Banner período cerrado */}
+      {isCurrentPeriodClosed && (
+        <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-amber-500 text-base">🔒</span>
+            <div>
+              <p className="font-semibold text-amber-700">
+                {periodLabel} — período cerrado
+              </p>
+              <p className="text-amber-600">
+                Cerrado el {new Date(currentPeriodClose.fecha_cierre).toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' })} · Solo lectura
+              </p>
+            </div>
+          </div>
+          {!confirmReopen ? (
+            <button onClick={() => setConfirmReopen(true)}
+              className="text-xs font-semibold text-amber-700 border border-amber-300 hover:bg-amber-100 rounded-lg px-3 py-1.5 flex-shrink-0 transition-colors">
+              🔓 Abrir período
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="text-xs text-amber-700 font-medium">¿Confirmar apertura?</span>
+              <button onClick={handleReopenPeriod} disabled={reopeningPeriod}
+                className="text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-lg px-3 py-1.5 disabled:opacity-50 transition-colors">
+                {reopeningPeriod ? '⟳' : 'Sí, abrir'}
+              </button>
+              <button onClick={() => setConfirmReopen(false)}
+                className="text-xs text-amber-600 hover:text-amber-800">Cancelar</button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Acciones */}
       <div className="flex gap-2 flex-wrap">
         <button onClick={handleToggleVersions}
@@ -424,7 +533,8 @@ export default function PodDesigner() {
           📋 Versiones
         </button>
         <button onClick={handleAddPod}
-          className="px-3 py-2 text-xs font-semibold rounded-lg border-2 border-dashed border-accent text-accent hover:bg-accent/10 transition-colors">
+          disabled={isCurrentPeriodClosed}
+          className="px-3 py-2 text-xs font-semibold rounded-lg border-2 border-dashed border-accent text-accent hover:bg-accent/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           + Agregar POD
         </button>
         <button onClick={handleReset}
@@ -436,6 +546,26 @@ export default function PodDesigner() {
           style={{ background: '#59D7A2', color: '#0A0A0B' }}>
           Exportar
         </button>
+
+        {/* Cerrar período — solo si no está cerrado */}
+        {!isCurrentPeriodClosed && selectedMonth && (
+          !confirmClose ? (
+            <button onClick={() => setConfirmClose(true)}
+              className="px-3 py-2 text-xs font-semibold rounded-lg border-2 border-rose-300 text-rose-600 hover:bg-rose-50 transition-colors ml-auto">
+              🔒 Cerrar {periodLabel}
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-xs text-rose-600 font-medium">¿Cerrar {periodLabel} definitivamente?</span>
+              <button onClick={handleClosePeriod} disabled={closingPeriod}
+                className="px-3 py-1.5 text-xs font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-lg disabled:opacity-50 transition-colors">
+                {closingPeriod ? '⟳ Cerrando...' : 'Confirmar cierre'}
+              </button>
+              <button onClick={() => setConfirmClose(false)}
+                className="text-xs text-textSecondary hover:text-textPrimary">Cancelar</button>
+            </div>
+          )
+        )}
       </div>
 
       {/* Panel de versiones */}
