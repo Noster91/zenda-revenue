@@ -269,7 +269,11 @@ export async function fetchCostosMensualizados(tabName = TAB_COSTOS_MENSUALIZADO
 
   const mesColMap = {} // { colIndex: 'ene-26', ... }
   headers.forEach((h, i) => {
-    const key = MES_NUM_TO_KEY[h.trim()]
+    // Headers pueden venir como '1', '1,00' o '1.00' según locale del sheet
+    const normalized = String(Math.round(parseFloat(
+      h.trim().replace(/\./g, '').replace(',', '.')
+    )))
+    const key = MES_NUM_TO_KEY[normalized]
     if (key) mesColMap[i] = key
   })
 
