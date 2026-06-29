@@ -46,7 +46,7 @@ export default function Rentabilidad() {
   // Costo real del equipo desde el sheet (costoMensualARS / TC)
   const costoEquipoReal = useMemo(() => {
     if (!teamData || !teamData.length || !liveRate) return null
-    const totalARS = teamData.reduce((s, p) => {
+    const totalARS = teamData.filter(p => !p.esOverhead).reduce((s, p) => {
       const mensual = p.costoMensualARS || (p.costoAnualARS ? p.costoAnualARS / 12 : p.neto)
       return s + mensual
     }, 0)

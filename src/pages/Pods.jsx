@@ -148,7 +148,10 @@ export default function Pods() {
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between text-xs mb-0.5">
                           <span className="font-medium text-textPrimary truncate">{m.nombre}</span>
-                          <span className="text-accent font-semibold flex-shrink-0 ml-2">{m.porcentajeDedicacion}%</span>
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                            <span className="text-textSecondary">{formatUSD(Math.round(m.costoUSD * m.porcentajeDedicacion / 100))}</span>
+                            <span className="text-accent font-semibold">{m.porcentajeDedicacion}%</span>
+                          </div>
                         </div>
                         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                           <div className="h-full rounded-full bg-accent"

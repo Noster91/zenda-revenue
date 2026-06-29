@@ -131,6 +131,7 @@ export function usePodMetrics() {
         equipo: members.map(m => ({
           nombre: m.nombre,
           porcentajeDedicacion: m.allocation,
+          costoUSD: m.costoUSD || 0,
           _orphaned: m._orphaned,
         })),
       }
