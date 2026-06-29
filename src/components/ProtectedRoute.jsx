@@ -1,8 +1,10 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-export default function ProtectedRoute({ children }) {
-  const { session } = useAuth()
+// allowedRoles: si se pasa, el usuario debe tener uno de esos roles.
+// Usuarios sin el rol son redirigidos a /pod-designer (única vista disponible para hr).
+export default function ProtectedRoute({ children, allowedRoles }) {
+  const { session, role } = useAuth()
 
   if (session === undefined) {
     return (
@@ -13,6 +15,10 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!session) return <Navigate to="/login" replace />
+
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    return <Navigate to="/pod-designer" replace />
+  }
 
   return children
 }

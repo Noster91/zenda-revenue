@@ -19,6 +19,7 @@ import usePodDesignStore from '../store/usePodDesignStore'
 import { usePodMetrics } from '../hooks/usePodMetrics'
 import { formatUSD, formatPct } from '../utils/formatters'
 import { POD_COLORS } from '../utils/podColors'
+import { useAuth } from '../context/AuthContext'
 
 const EXTRA_COLORS = [
   '#F59E0B','#8B5CF6','#EC4899','#14B8A6','#F97316','#6366F1',
@@ -63,7 +64,7 @@ function KanbanColumn({ id, children, className, style: styleProp }) {
 }
 
 // ── Card visuals ────────────────────────────────────────────────────────────
-function TeamCardView({ member, color, showAllocation }) {
+function TeamCardView({ member, color, showAllocation, hideFinance }) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing p-2">
       <div className="flex items-center gap-2">
@@ -79,15 +80,17 @@ function TeamCardView({ member, color, showAllocation }) {
             <p className="text-[8px] text-gray-400">{member.allocation}%</p>
           )}
         </div>
-        <span className="font-bold flex-shrink-0 text-[10px] text-gray-500">
-          {formatUSD(member.costoUSD)}
-        </span>
+        {!hideFinance && (
+          <span className="font-bold flex-shrink-0 text-[10px] text-gray-500">
+            {formatUSD(member.costoUSD)}
+          </span>
+        )}
       </div>
     </div>
   )
 }
 
-function ClientCardView({ client }) {
+function ClientCardView({ client, hideFinance }) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing p-2">
       <div className="flex items-center gap-1.5">
@@ -97,9 +100,11 @@ function ClientCardView({ client }) {
         <span className="font-semibold text-gray-800 truncate flex-1 min-w-0 text-[11px]">
           {client.nombre}
         </span>
-        <span className="text-emerald-700 font-bold flex-shrink-0 text-[10px]">
-          {formatUSD(client.revenue)}
-        </span>
+        {!hideFinance && (
+          <span className="text-emerald-700 font-bold flex-shrink-0 text-[10px]">
+            {formatUSD(client.revenue)}
+          </span>
+        )}
       </div>
     </div>
   )
@@ -126,6 +131,8 @@ export default function PodKanban({ teamPool, clientPool }) {
   } = usePodDesignStore()
 
   const { podMetrics } = usePodMetrics()
+  const { role } = useAuth()
+  const hideFinance = role === 'hr'
 
   const [activeItem, setActiveItem] = useState(null)
   const [poolTab, setPoolTab] = useState('equipo')
@@ -256,7 +263,7 @@ export default function PodKanban({ teamPool, clientPool }) {
               const isFullyAllocated = usage && usage.total >= 100
               if (isFullyAllocated) return (
                 <div key={member.nombre} className="opacity-35 pointer-events-none">
-                  <TeamCardView member={member} />
+                  <TeamCardView member={member} hideFinance={hideFinance} />
                 </div>
               )
               return (
@@ -266,7 +273,7 @@ export default function PodKanban({ teamPool, clientPool }) {
                   data={{ itemType: 'team', nombre: member.nombre, costoUSD: member.costoUSD, fromPod: null }}
                 >
                   <div className="relative">
-                    <TeamCardView member={member} />
+                    <TeamCardView member={member} hideFinance={hideFinance} />
                     {usage && usage.total > 0 && (
                       <div className="absolute top-0.5 right-0.5 flex gap-0.5">
                         {usage.pods.map(p => (
@@ -288,7 +295,7 @@ export default function PodKanban({ teamPool, clientPool }) {
                 id={`pool-client-${client.nombre}`}
                 data={{ itemType: 'client', nombre: client.nombre, tipo: client.tipo, revenue: client.revenue, fromPod: null }}
               >
-                <ClientCardView client={client} />
+                <ClientCardView client={client} hideFinance={hideFinance} />
               </KanbanCard>
             ))}
 
@@ -324,6 +331,7 @@ export default function PodKanban({ teamPool, clientPool }) {
                     {pod.nombre || '—'}
                   </span>
                 </div>
+                {!hideFinance && (
                 <div className="grid grid-cols-3 gap-1 text-center">
                   <div className="bg-white/80 rounded px-1 py-0.5">
                     <p className="text-[7px] text-gray-400 leading-tight">Revenue</p>
@@ -338,6 +346,7 @@ export default function PodKanban({ teamPool, clientPool }) {
                     <p className="text-[9px] font-bold">{formatPct(pod.marginPct)}</p>
                   </div>
                 </div>
+                )}
               </div>
 
               {/* Column content */}
@@ -354,7 +363,7 @@ export default function PodKanban({ teamPool, clientPool }) {
                           id={`pod-${pod.id}-client-${client.nombre}`}
                           data={{ itemType: 'client', nombre: client.nombre, tipo: client.tipo, revenue: client.revenue, fromPod: pod.id }}
                         >
-                          <ClientCardView client={client} />
+                          <ClientCardView client={client} hideFinance={hideFinance} />
                         </KanbanCard>
                         <RemoveButton onClick={() => removeClient(pod.id, client.nombre)} />
                       </div>
@@ -374,7 +383,7 @@ export default function PodKanban({ teamPool, clientPool }) {
                           id={`pod-${pod.id}-team-${member.nombre}`}
                           data={{ itemType: 'team', nombre: member.nombre, costoUSD: member.costoUSD, fromPod: pod.id }}
                         >
-                          <TeamCardView member={member} color={color} showAllocation />
+                          <TeamCardView member={member} color={color} showAllocation hideFinance={hideFinance} />
                         </KanbanCard>
                         <RemoveButton onClick={() => removeMember(pod.id, member.nombre)} />
                       </div>
@@ -396,7 +405,7 @@ export default function PodKanban({ teamPool, clientPool }) {
               {/* Column footer */}
               <div className="px-2 py-1.5 border-t border-gray-100 flex items-center justify-between text-[8px] text-gray-400">
                 <span>{podMembers.length}p · {podClients.length}c</span>
-                {pod.revenue > 0 && (
+                {!hideFinance && pod.revenue > 0 && (
                   <span className={pod.marginPct >= 0 ? 'text-success font-bold' : 'text-danger font-bold'}>
                     {formatUSD(pod.margin)}
                   </span>
@@ -412,8 +421,8 @@ export default function PodKanban({ teamPool, clientPool }) {
         {activeItem && (
           <div style={{ width: 200, opacity: 0.92, pointerEvents: 'none', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.15))' }}>
             {activeItem.itemType === 'team'
-              ? <TeamCardView member={{ nombre: activeItem.nombre, costoUSD: activeItem.costoUSD }} color="#30b299" />
-              : <ClientCardView client={{ nombre: activeItem.nombre, tipo: activeItem.tipo, revenue: activeItem.revenue }} />
+              ? <TeamCardView member={{ nombre: activeItem.nombre, costoUSD: activeItem.costoUSD }} color="#30b299" hideFinance={hideFinance} />
+              : <ClientCardView client={{ nombre: activeItem.nombre, tipo: activeItem.tipo, revenue: activeItem.revenue }} hideFinance={hideFinance} />
             }
           </div>
         )}

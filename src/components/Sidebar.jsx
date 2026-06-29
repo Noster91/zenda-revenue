@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 
 const nav = [
   {
-    to: '/', label: 'Dashboard', icon: (
+    to: '/', label: 'Dashboard', roles: ['admin'], icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
         <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
         <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
@@ -13,7 +13,7 @@ const nav = [
     )
   },
   {
-    to: '/pods', label: 'PODs', icon: (
+    to: '/pods', label: 'PODs', roles: ['admin'], icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8" strokeDasharray="3 2"/>
         <circle cx="12" cy="12" r="1" fill="currentColor"/>
@@ -21,7 +21,7 @@ const nav = [
     )
   },
   {
-    to: '/pod-designer', label: 'Diseñador de PODs', icon: (
+    to: '/pod-designer', label: 'Diseñador de PODs', roles: ['admin', 'hr'], icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
         <path d="M12 2L2 7l10 5 10-5-10-5z"/>
         <path d="M2 17l10 5 10-5"/>
@@ -30,7 +30,7 @@ const nav = [
     ),
   },
   {
-    to: '/clientes', label: 'Clientes', icon: (
+    to: '/clientes', label: 'Clientes', roles: ['admin'], icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
         <circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -38,7 +38,7 @@ const nav = [
     )
   },
   {
-    to: '/maestro-clientes', label: 'Maestro Clientes', icon: (
+    to: '/maestro-clientes', label: 'Maestro Clientes', roles: ['admin'], icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
         <rect x="3" y="3" width="18" height="18" rx="2"/>
         <path d="M3 9h18"/><path d="M9 21V9"/>
@@ -47,7 +47,7 @@ const nav = [
     )
   },
   {
-    to: '/equipo', label: 'Equipo y Costos', icon: (
+    to: '/equipo', label: 'Equipo y Costos', roles: ['admin'], icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
         <circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/>
         <path d="M12 12v9" strokeDasharray="2 2"/>
@@ -55,7 +55,7 @@ const nav = [
     )
   },
   {
-    to: '/rentabilidad', label: 'Rentabilidad', icon: (
+    to: '/rentabilidad', label: 'Rentabilidad', roles: ['admin'], icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
         <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
         <polyline points="16 7 22 7 22 13"/>
@@ -66,7 +66,7 @@ const nav = [
 
 export default function Sidebar({ open, onClose }) {
   const navigate = useNavigate()
-  const { session } = useAuth()
+  const { session, role } = useAuth()
 
   const handleLogout = async () => {
     if (isSupabaseConfigured && supabase) {
@@ -104,7 +104,7 @@ export default function Sidebar({ open, onClose }) {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-5 space-y-1">
-          {nav.map(({ to, label, icon }) => (
+          {nav.filter(item => item.roles.includes(role)).map(({ to, label, icon }) => (
             <NavLink
               key={to}
               to={to}

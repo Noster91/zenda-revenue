@@ -16,8 +16,13 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  // role: leído desde user_metadata. Default 'admin' para no romper usuarios existentes.
+  const role = (session && session !== 'bypass')
+    ? (session.user?.user_metadata?.role ?? 'admin')
+    : 'admin'
+
   return (
-    <AuthContext.Provider value={{ session }}>
+    <AuthContext.Provider value={{ session, role }}>
       {children}
     </AuthContext.Provider>
   )

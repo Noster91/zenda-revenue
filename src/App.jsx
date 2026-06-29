@@ -25,13 +25,13 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Dashboard />} />
-            <Route path="pods" element={<Pods />} />
-            <Route path="clientes" element={<Clientes />} />
-            <Route path="equipo" element={<Equipo />} />
-            <Route path="rentabilidad" element={<Rentabilidad />} />
+            <Route index element={<ProtectedRoute allowedRoles={['admin']}><Dashboard /></ProtectedRoute>} />
+            <Route path="pods" element={<ProtectedRoute allowedRoles={['admin']}><Pods /></ProtectedRoute>} />
+            <Route path="clientes" element={<ProtectedRoute allowedRoles={['admin']}><Clientes /></ProtectedRoute>} />
+            <Route path="equipo" element={<ProtectedRoute allowedRoles={['admin']}><Equipo /></ProtectedRoute>} />
+            <Route path="rentabilidad" element={<ProtectedRoute allowedRoles={['admin']}><Rentabilidad /></ProtectedRoute>} />
             <Route path="pod-designer" element={<PodDesigner />} />
-            <Route path="maestro-clientes" element={<MaestroClientes />} />
+            <Route path="maestro-clientes" element={<ProtectedRoute allowedRoles={['admin']}><MaestroClientes /></ProtectedRoute>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -80,8 +80,9 @@ export default function PodDesigner() {
   const { rate, refresh: refreshRate, rateData } = useExchangeRate()
 
   // ── Auth ──────────────────────────────────────────────────────────────────
-  const { session } = useAuth()
+  const { session, role } = useAuth()
   const userId = session && session !== 'bypass' ? session.user?.id : null
+  const isHR = role === 'hr'
 
   // ── Store global ──────────────────────────────────────────────────────────
   const store = usePodDesignStore()
@@ -445,8 +446,8 @@ export default function PodDesigner() {
   return (
     <div className="space-y-4">
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* KPIs — solo admin */}
+      {!isHR && <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { label: 'Revenue Total',  value: formatUSD(globalMetrics.revenue),  color: '#30b299' },
           { label: 'Costo Equipos',  value: formatUSD(globalMetrics.teamCost), color: '#6B7280' },
@@ -489,7 +490,7 @@ export default function PodDesigner() {
             }
           </p>
         </div>
-      </div>
+      </div>}
 
       {/* Banner período cerrado */}
       {isCurrentPeriodClosed && (
@@ -661,11 +662,15 @@ export default function PodDesigner() {
       {/* TC + source badges */}
       <div className="flex items-center gap-2 text-xs text-textSecondary flex-wrap">
         <span className="w-2 h-2 rounded-full bg-accent animate-pulse inline-block" />
-        <span>
-          TC: <strong className="text-textPrimary">${rate.toLocaleString('es-AR')}</strong> (blue)
-          {rateData && <span className="ml-1 text-gray-400">· {rateData.compra}/{rateData.venta}</span>}
-        </span>
-        <button onClick={refreshRate} className="text-accent hover:underline">↻</button>
+        {!isHR && (
+          <>
+            <span>
+              TC: <strong className="text-textPrimary">${rate.toLocaleString('es-AR')}</strong> (blue)
+              {rateData && <span className="ml-1 text-gray-400">· {rateData.compra}/{rateData.venta}</span>}
+            </span>
+            <button onClick={refreshRate} className="text-accent hover:underline">↻</button>
+          </>
+        )}
         {teamSource === 'sheets' && (
           <span className="px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">Equipo · live</span>
         )}
@@ -752,7 +757,7 @@ export default function PodDesigner() {
                     {member.nombre.split(' ').slice(0, 2).join(' ')}
                     {member._simulated && <span className="ml-1 px-1 rounded text-[8px] font-bold bg-purple-100 text-purple-600">SIM</span>}
                   </div>
-                  <div className="text-[10px] text-textSecondary">{formatUSD(member.costoUSD)}</div>
+                  {!isHR && <div className="text-[10px] text-textSecondary">{formatUSD(member.costoUSD)}</div>}
                 </div>
                 {usage.length > 0 && (
                   <div className="flex gap-0.5 ml-1">
@@ -793,8 +798,8 @@ export default function PodDesigner() {
                 <div>
                   <div className="font-semibold text-xs text-textPrimary whitespace-nowrap">{client.nombre}</div>
                   <div className="flex items-center gap-1.5">
-                    <span className={`px-1 py-0.5 rounded text-[8px] font-bold ${tier.bg}`}>{tier.label}</span>
-                    <span className="font-bold text-[10px]" style={{ color: '#059669' }}>{formatUSD(client.revenue)}</span>
+                    {!isHR && <span className={`px-1 py-0.5 rounded text-[8px] font-bold ${tier.bg}`}>{tier.label}</span>}
+                    {!isHR && <span className="font-bold text-[10px]" style={{ color: '#059669' }}>{formatUSD(client.revenue)}</span>}
                     {assignedTo && (
                       <span className="px-1 py-0.5 rounded text-[9px] font-bold"
                         style={{ background: (POD_COLORS[assignedTo] || '#999') + '30', color: POD_COLORS[assignedTo] || '#666' }}>
@@ -874,7 +879,7 @@ export default function PodDesigner() {
                     )}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <span className="text-lg">{semaforo(pod.marginPct)}</span>
+                    {!isHR && <span className="text-lg">{semaforo(pod.marginPct)}</span>}
                     {isDeleting ? (
                       <div className="flex items-center gap-1 ml-1" onClick={e => e.stopPropagation()}>
                         <button onClick={() => handleDeletePod(pod.id)}
@@ -892,7 +897,8 @@ export default function PodDesigner() {
                 </div>
 
                 <div className="p-4 space-y-3">
-                  {/* Revenue */}
+                  {/* Revenue — solo admin */}
+                  {!isHR && (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-textSecondary w-20 flex-shrink-0">Revenue</span>
                     <div className="flex-1 relative">
@@ -908,8 +914,10 @@ export default function PodDesigner() {
                         className="text-[9px] text-accent hover:underline flex-shrink-0">auto</button>
                     )}
                   </div>
+                  )}
 
-                  {/* Metricas */}
+                  {/* Metricas — solo admin */}
+                  {!isHR && (
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="bg-gray-50 rounded-lg p-2">
                       <p className="text-[10px] text-textSecondary">Costo</p>
@@ -924,7 +932,9 @@ export default function PodDesigner() {
                       <p className="text-xs font-bold">{formatPct(pod.marginPct)}</p>
                     </div>
                   </div>
+                  )}
 
+                  {!isHR && (
                   <div className="w-full bg-gray-100 rounded-full h-1.5">
                     <div className="h-1.5 rounded-full transition-all duration-500"
                       style={{
@@ -932,9 +942,10 @@ export default function PodDesigner() {
                         background: pod.marginPct > 20 ? '#009444' : pod.marginPct >= 0 ? '#F59E0B' : '#E53935',
                       }} />
                   </div>
+                  )}
 
-                  {/* Fee band ideal (Capa 2 - aditiva) */}
-                  {feeBand && pod.members.length > 0 && (
+                  {/* Fee band ideal — solo admin */}
+                  {!isHR && feeBand && pod.members.length > 0 && (
                     <div className="flex items-center justify-between text-[10px] bg-blue-50 rounded-lg px-2.5 py-1.5 border border-blue-100">
                       <div className="flex items-center gap-1">
                         <span className="text-blue-400">💎</span>
@@ -959,8 +970,8 @@ export default function PodDesigner() {
                     </div>
                   )}
 
-                  {/* Fit indicator cuando hay cliente seleccionado (Capa 4 - label) */}
-                  {isTargeting && hasClientSelected && fitScore && fitScore !== 'empty' && (
+                  {/* Fit indicator — solo admin */}
+                  {!isHR && isTargeting && hasClientSelected && fitScore && fitScore !== 'empty' && (
                     <div className={`flex items-center gap-1.5 text-[10px] rounded-lg px-2.5 py-1.5 font-semibold ${
                       fitScore === 'great'  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                       fitScore === 'good'   ? 'bg-blue-50 text-blue-600 border border-blue-200' :
@@ -985,15 +996,15 @@ export default function PodDesigner() {
                         <div key={client.nombre}
                           className={`flex items-center gap-2 text-[11px] ${
                             client._orphaned ? 'opacity-50 bg-danger/5 rounded px-1 -mx-1'
-                            : dilution === 'danger' ? 'bg-red-50 rounded px-1 -mx-1'
-                            : dilution === 'warning' ? 'bg-amber-50/50 rounded px-1 -mx-1'
+                            : (!isHR && dilution === 'danger') ? 'bg-red-50 rounded px-1 -mx-1'
+                            : (!isHR && dilution === 'warning') ? 'bg-amber-50/50 rounded px-1 -mx-1'
                             : ''
                           }`}
                           onClick={e => e.stopPropagation()}>
                           {client._orphaned && (
                             <span className="px-1 py-0.5 rounded text-[8px] font-bold bg-danger/15 text-danger flex-shrink-0" title="Ya no aparece en Ventas Dolarizadas">BAJA</span>
                           )}
-                          {!client._orphaned && dilution !== 'none' && (
+                          {!isHR && !client._orphaned && dilution !== 'none' && (
                             <span className={`flex-shrink-0 text-[10px] ${
                               dilution === 'danger' ? 'text-red-500' : 'text-amber-500'
                             }`} title={dilution === 'danger'
@@ -1007,7 +1018,7 @@ export default function PodDesigner() {
                             client.tipo === 'A' ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-textSecondary'
                           }`}>{client.tipo}</span>
                           <span className={`truncate flex-1 min-w-0 ${client._orphaned ? 'line-through text-textSecondary' : 'text-textPrimary'}`}>{client.nombre}</span>
-                          <span className="text-primary font-semibold flex-shrink-0">{formatUSD(client.revenue)}</span>
+                          {!isHR && <span className="text-primary font-semibold flex-shrink-0">{formatUSD(client.revenue)}</span>}
                           <button onClick={() => removeClient(pod.id, client.nombre)}
                             className="text-gray-300 hover:text-danger transition-colors flex-shrink-0">✕</button>
                         </div>
@@ -1063,9 +1074,11 @@ export default function PodDesigner() {
                             }`} style={totalAlloc < 100 ? { color } : {}}>
                               {member.allocation}%
                             </span>
+                            {!isHR && (
                             <span className="text-[10px] text-textSecondary whitespace-nowrap flex-shrink-0 w-16 text-right">
                               {formatUSD(Math.round((member.costoUSD || 0) * member.allocation / 100))}
                             </span>
+                            )}
                           </>
                         )}
                         {member._orphaned && (
@@ -1078,7 +1091,7 @@ export default function PodDesigner() {
                     })}
                   </div>
 
-                  {(pod.members.length > 0 || pod.clients.length > 0) && (
+                  {!isHR && (pod.members.length > 0 || pod.clients.length > 0) && (
                     <div className="text-[10px] text-textSecondary border-t border-gray-100 pt-2 space-y-0.5">
                       {pod.clients.length > 0 && (
                         <div className="flex justify-between">
@@ -1106,8 +1119,8 @@ export default function PodDesigner() {
           </button>
       </div>
 
-      {/* Tabla resumen */}
-      <div className="bg-white rounded-2xl shadow-sm p-5 overflow-x-auto">
+      {/* Tabla resumen — solo admin */}
+      {!isHR && <div className="bg-white rounded-2xl shadow-sm p-5 overflow-x-auto">
         <div className="flex items-center justify-between mb-4 gap-4">
           <h2 className="text-sm font-bold text-textPrimary whitespace-nowrap">Resumen comparativo por POD</h2>
           <input
@@ -1183,7 +1196,7 @@ export default function PodDesigner() {
             </tr>
           </tfoot>
         </table>
-      </div>
+      </div>}
 
     </div>
   )
