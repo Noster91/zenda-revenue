@@ -1,6 +1,33 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import {
+  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer, ReferenceLine,
+} from 'recharts'
 import { listPeriodos, loadClosedPeriod } from '../services/periodCloseService'
 import { formatUSD, formatPct } from '../utils/formatters'
+
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{
+      background: '#0A0A0B', borderRadius: 10, padding: '10px 14px',
+      fontSize: 11, color: '#fff', minWidth: 180,
+    }}>
+      <p style={{ fontWeight: 700, marginBottom: 8, color: 'rgba(255,255,255,0.45)', fontSize: 10 }}>
+        {label}
+      </p>
+      {payload.map(p => (
+        <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+          <span style={{ color: 'rgba(255,255,255,0.6)', flex: 1 }}>{p.name}</span>
+          <span style={{ fontWeight: 700, color: p.color }}>
+            {p.name === 'Margen %' ? `${Number(p.value).toFixed(1)}%` : formatUSD(p.value)}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function Semaforo({ pct }) {
   if (pct > 20) return <span className="w-2 h-2 rounded-full bg-success inline-block flex-shrink-0" />
@@ -41,6 +68,19 @@ export default function RendimientoHistorico() {
     load()
   }, [])
 
+  // Debe estar antes de los early returns para respetar Rules of Hooks
+  const chartData = useMemo(() =>
+    meses.map(({ label, snap }) => {
+      const g = snap.metrics?.globalMetrics || {}
+      return {
+        mes:       label,
+        revenue:   g.revenue   || 0,
+        margen:    g.margin    || 0,
+        margenPct: g.marginPct || 0,
+      }
+    }),
+  [meses])
+
   if (loading) {
     return <p className="text-sm text-textSecondary py-10 text-center">Cargando histórico…</p>
   }
@@ -56,6 +96,66 @@ export default function RendimientoHistorico() {
 
   return (
     <div className="space-y-5">
+
+      {/* Gráfico comparativo */}
+      {chartData.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-sm font-bold text-textPrimary">Evolución mensual</h2>
+              <p className="text-xs text-textSecondary mt-0.5">Revenue · Margen USD · Margen %</p>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-textSecondary">
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#59D7A2' }} /> Revenue
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#0A2540' }} /> Margen USD
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-6 h-0.5 inline-block" style={{ background: '#F0B429' }} /> Margen %
+              </span>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={260}>
+            <ComposedChart data={chartData} margin={{ top: 4, right: 24, left: 10, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+              <XAxis
+                dataKey="mes"
+                tick={{ fontSize: 11, fill: '#6B7280', fontFamily: 'var(--font-mono)' }}
+                axisLine={false} tickLine={false}
+              />
+              <YAxis
+                yAxisId="usd"
+                tickFormatter={v => `${(v / 1000).toFixed(0)}k`}
+                tick={{ fontSize: 10, fill: '#9CA3AF' }}
+                axisLine={false} tickLine={false}
+              />
+              <YAxis
+                yAxisId="pct"
+                orientation="right"
+                tickFormatter={v => `${v}%`}
+                tick={{ fontSize: 10, fill: '#9CA3AF' }}
+                axisLine={false} tickLine={false}
+                domain={[0, 'auto']}
+              />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(10,10,11,0.03)' }} />
+              <ReferenceLine yAxisId="pct" y={20} stroke="#F0B429" strokeDasharray="4 3" strokeWidth={1.5} />
+              <Bar yAxisId="usd" dataKey="revenue" name="Revenue"    fill="#59D7A2" radius={[4,4,0,0]} maxBarSize={40} />
+              <Bar yAxisId="usd" dataKey="margen"  name="Margen USD" fill="#0A2540" radius={[4,4,0,0]} maxBarSize={40} />
+              <Line
+                yAxisId="pct" dataKey="margenPct" name="Margen %"
+                stroke="#F0B429" strokeWidth={2.5} dot={{ r: 4, fill: '#F0B429', strokeWidth: 0 }}
+                activeDot={{ r: 6 }} type="monotone"
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+          <p className="text-[10px] text-textSecondary mt-2 text-right">
+            Línea punteada = objetivo 20% margen
+          </p>
+        </div>
+      )}
+
       {meses.map(({ label, codigo, snap }) => {
         const pods   = snap.metrics?.podMetrics   || []
         const global = snap.metrics?.globalMetrics || {}
@@ -88,12 +188,18 @@ export default function RendimientoHistorico() {
                   <span className="font-semibold text-textPrimary ml-1">{formatUSD(global.revenue)}</span>
                 </span>
                 <span>
-                  Margen global{' '}
+                  Margen{' '}
                   <span className={`font-bold ml-1 ${
                     global.marginPct > 20 ? 'text-success' :
                     global.marginPct >= 0 ? 'text-warning' : 'text-danger'
                   }`}>
-                    {formatPct(global.marginPct)}
+                    {formatUSD(global.margin)}
+                  </span>
+                  <span className={`ml-1 ${
+                    global.marginPct > 20 ? 'text-success' :
+                    global.marginPct >= 0 ? 'text-warning' : 'text-danger'
+                  }`}>
+                    ({formatPct(global.marginPct)})
                   </span>
                 </span>
               </div>
