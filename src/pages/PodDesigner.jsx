@@ -548,23 +548,42 @@ export default function PodDesigner() {
           Exportar
         </button>
 
-        {/* Cerrar período — solo si no está cerrado */}
-        {!isCurrentPeriodClosed && selectedMonth && (
-          !confirmClose ? (
-            <button onClick={() => setConfirmClose(true)}
-              className="px-3 py-2 text-xs font-semibold rounded-lg border-2 border-rose-300 text-rose-600 hover:bg-rose-50 transition-colors ml-auto">
-              🔒 Cerrar {periodLabel}
-            </button>
-          ) : (
-            <div className="flex items-center gap-2 ml-auto">
-              <span className="text-xs text-rose-600 font-medium">¿Cerrar {periodLabel} definitivamente?</span>
-              <button onClick={handleClosePeriod} disabled={closingPeriod}
-                className="px-3 py-1.5 text-xs font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-lg disabled:opacity-50 transition-colors">
-                {closingPeriod ? '⟳ Cerrando...' : 'Confirmar cierre'}
+        {/* Cerrar / Reabrir período */}
+        {selectedMonth && (
+          isCurrentPeriodClosed ? (
+            !confirmReopen ? (
+              <button onClick={() => setConfirmReopen(true)}
+                className="px-3 py-2 text-xs font-semibold rounded-lg border-2 border-amber-300 text-amber-600 hover:bg-amber-50 transition-colors ml-auto">
+                🔓 Reabrir {periodLabel}
               </button>
-              <button onClick={() => setConfirmClose(false)}
-                className="text-xs text-textSecondary hover:text-textPrimary">Cancelar</button>
-            </div>
+            ) : (
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="text-xs text-amber-600 font-medium">¿Reabrir {periodLabel}?</span>
+                <button onClick={handleReopenPeriod} disabled={reopeningPeriod}
+                  className="px-3 py-1.5 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-lg disabled:opacity-50 transition-colors">
+                  {reopeningPeriod ? '⟳ Reabriendo...' : 'Confirmar reapertura'}
+                </button>
+                <button onClick={() => setConfirmReopen(false)}
+                  className="text-xs text-textSecondary hover:text-textPrimary">Cancelar</button>
+              </div>
+            )
+          ) : (
+            !confirmClose ? (
+              <button onClick={() => setConfirmClose(true)}
+                className="px-3 py-2 text-xs font-semibold rounded-lg border-2 border-rose-300 text-rose-600 hover:bg-rose-50 transition-colors ml-auto">
+                🔒 Cerrar {periodLabel}
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="text-xs text-rose-600 font-medium">¿Cerrar {periodLabel} definitivamente?</span>
+                <button onClick={handleClosePeriod} disabled={closingPeriod}
+                  className="px-3 py-1.5 text-xs font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-lg disabled:opacity-50 transition-colors">
+                  {closingPeriod ? '⟳ Cerrando...' : 'Confirmar cierre'}
+                </button>
+                <button onClick={() => setConfirmClose(false)}
+                  className="text-xs text-textSecondary hover:text-textPrimary">Cancelar</button>
+              </div>
+            )
           )
         )}
       </div>
