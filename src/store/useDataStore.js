@@ -212,9 +212,12 @@ const useDataStore = create((set, get) => ({
   },
 
   // ── Refresh All ───────────────────────────────────────────────────────────
+  // fetchTeam() intencionalmente excluido: el auto-refresh NO debe pisar el
+  // teamData derivado por setTeamDataForMonth. Tras fetchTeamMensual(), el
+  // efecto del orquestador re-deriva para el selectedMonth activo.
   refreshAll: async () => {
-    const { fetchTeam, fetchTeamMensual, fetchVentas, fetchRate, fetchLooker } = get()
-    await Promise.allSettled([fetchTeam(), fetchTeamMensual(), fetchVentas(), fetchRate(true), fetchLooker()])
+    const { fetchTeamMensual, fetchVentas, fetchRate, fetchLooker } = get()
+    await Promise.allSettled([fetchTeamMensual(), fetchVentas(), fetchRate(true), fetchLooker()])
   },
 
   // ── Initialize (called once from Layout) ──────────────────────────────────

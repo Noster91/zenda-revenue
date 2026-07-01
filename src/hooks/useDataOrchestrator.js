@@ -23,6 +23,9 @@ export default function useDataOrchestrator() {
   const rate                 = useDataStore(s => s.rate)
   const teamSource           = useDataStore(s => s.teamSource)
   const ventasSource         = useDataStore(s => s.ventasSource)
+  const teamLoading          = useDataStore(s => s.teamLoading)
+  const teamMensualLoading   = useDataStore(s => s.teamMensualLoading)
+  const ventasLoading        = useDataStore(s => s.ventasLoading)
 
   const syncWithLiveData   = usePodDesignStore(s => s.syncWithLiveData)
   const loadFromSupabase   = usePodDesignStore(s => s.loadFromSupabase)
@@ -37,12 +40,13 @@ export default function useDataOrchestrator() {
     initialize()
   }, [initialize])
 
-  // 1d. Cuando llegan los costos mensualizados o cambia el período, derivar teamData para ese mes
+  // 1d. Cuando llegan los costos mensualizados o cambia el período, derivar teamData para ese mes.
+  // Guard: si el período está cerrado, el snapshot lo maneja su propio efecto (1f) — no pisar.
   useEffect(() => {
-    if (teamMensualData && selectedMonth) {
+    if (teamMensualData && selectedMonth && !closedPeriods[selectedMonth]) {
       setTeamDataForMonth(selectedMonth)
     }
-  }, [teamMensualData, selectedMonth, setTeamDataForMonth])
+  }, [teamMensualData, selectedMonth, setTeamDataForMonth, closedPeriods])
 
   // 1c. Load POD config from Supabase on mount (overrides localStorage)
   useEffect(() => {
@@ -95,13 +99,14 @@ export default function useDataOrchestrator() {
     }
   }, [ventasData, setAvailableMonths])
 
-  // 2. Sync POD design store whenever data or selected period changes
+  // 2. Sync POD design store whenever data or selected period changes.
+  // Guard: no sincronizar mientras los datos están cargando — evita marcar
+  // asignaciones como _orphaned por un pool vacío o incompleto.
   useEffect(() => {
-    // Only sync if we have live data (not just local fallbacks)
     if (teamSource !== 'sheets' && ventasSource !== 'sheets') return
     if (!teamData || !rate) return
+    if (teamLoading || teamMensualLoading || ventasLoading) return
 
-    // Build team pool: operativos + C-Level operativos (asignables a PODs)
     const teamPool = teamData
       .filter(p => !p.esOverhead || p.cLevelOperativo)
       .map(p => ({
@@ -109,7 +114,8 @@ export default function useDataOrchestrator() {
         costoUSD: Math.round((p.costoMensualARS || p.neto || 0) / rate),
       }))
 
-    // Build client pool using selected month from period store
+    if (teamPool.length === 0) return
+
     let clientPool = []
     if (ventasData && selectedMonth) {
       clientPool = ventasData
@@ -122,7 +128,8 @@ export default function useDataOrchestrator() {
     }
 
     syncWithLiveData(teamPool, clientPool)
-  }, [teamData, ventasData, rate, teamSource, ventasSource, syncWithLiveData, selectedMonth])
+  }, [teamData, ventasData, rate, teamSource, ventasSource, syncWithLiveData, selectedMonth,
+      teamLoading, teamMensualLoading, ventasLoading])
 
   // Cleanup auto-refresh on unmount
   useEffect(() => {

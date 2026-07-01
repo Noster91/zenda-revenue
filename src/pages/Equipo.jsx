@@ -7,6 +7,7 @@ import { useTeamCostoNormalizadoData, useDatosLookerData } from '../hooks/useShe
 import useExchangeRate from '../hooks/useExchangeRate'
 import useSimulationStore from '../store/useSimulationStore'
 import { detectCLevel } from '../utils/clevel'
+import { usePeriodValues } from '../hooks/useGlobalPeriod'
 
 function overheadTipo(nombre) {
   const flags = detectCLevel(nombre)
@@ -27,21 +28,21 @@ export default function Equipo() {
   const [newNombre, setNewNombre]           = useState('')
   const [newNeto, setNewNeto]               = useState('')
   const [overheadOverrides, setOverheadOverrides] = useState(new Set())
-  const [selectedPeriodo, setSelectedPeriodo]     = useState(null) // null = más reciente
+
+  const { selectedMonth } = usePeriodValues()
 
   const effectiveTC = simMode ? tc : liveRate
 
-  // ── Períodos disponibles desde Looker ────────────────────────────────────────
-  const lookerPeriods = useMemo(() =>
-    (lookerData || []).map(d => ({ value: d.periodo, label: d.mes })),
-    [lookerData]
-  )
-
+  // Estructura del período global seleccionado (d.mes = "jul 26", selectedMonth = "jul-26")
   const currentLooker = useMemo(() => {
     if (!lookerData?.length) return null
-    if (!selectedPeriodo) return lookerData[lookerData.length - 1]
-    return lookerData.find(d => d.periodo === selectedPeriodo) ?? lookerData[lookerData.length - 1]
-  }, [lookerData, selectedPeriodo])
+    if (selectedMonth) {
+      const targetMes = selectedMonth.replace('-', ' ')
+      const found = lookerData.find(d => d.mes === targetMes)
+      if (found) return found
+    }
+    return lookerData[lookerData.length - 1]
+  }, [lookerData, selectedMonth])
 
   const estructuraUSD = currentLooker?.estructura != null ? Math.abs(currentLooker.estructura) : null
 
@@ -299,22 +300,6 @@ export default function Equipo() {
             </span>
           )}
 
-          {/* Selector de período para Estructura */}
-          {lookerPeriods.length > 0 && (
-            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5">
-              <span className="text-xs font-semibold text-textSecondary">Período:</span>
-              <select
-                value={selectedPeriodo || ''}
-                onChange={e => setSelectedPeriodo(e.target.value || null)}
-                className="text-xs font-semibold text-textPrimary bg-transparent border-none outline-none cursor-pointer"
-              >
-                <option value="">Más reciente</option>
-                {[...lookerPeriods].reverse().map(p => (
-                  <option key={p.value} value={p.value}>{p.label}</option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
 
         <button
