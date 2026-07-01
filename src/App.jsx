@@ -10,6 +10,7 @@ import Equipo from './pages/Equipo'
 import Rentabilidad from './pages/Rentabilidad'
 import PodDesigner from './pages/PodDesigner'
 import MaestroClientes from './pages/MaestroClientes'
+import RendimientoHistorico from './pages/RendimientoHistorico'
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="rentabilidad" element={<ProtectedRoute allowedRoles={['admin']}><Rentabilidad /></ProtectedRoute>} />
             <Route path="pod-designer" element={<PodDesigner />} />
             <Route path="maestro-clientes" element={<ProtectedRoute allowedRoles={['admin']}><MaestroClientes /></ProtectedRoute>} />
+            <Route path="historico" element={<ProtectedRoute allowedRoles={['admin']}><RendimientoHistorico /></ProtectedRoute>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

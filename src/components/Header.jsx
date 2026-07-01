@@ -8,6 +8,7 @@ const titles = {
   '/clientes': 'Clientes',
   '/equipo': 'Equipo y Costos',
   '/rentabilidad': 'Rentabilidad',
+  '/historico': 'Rendimiento Histórico',
 }
 
 const MODES = [
